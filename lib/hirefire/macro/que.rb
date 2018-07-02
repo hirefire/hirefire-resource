@@ -3,15 +3,23 @@
 module HireFire
   module Macro
     module Que
-      QUERY =  %{
-SELECT count(*)                                                          AS total,
-       count(locks.job_id)                                               AS running,
-       coalesce(sum((error_count > 0 AND locks.job_id IS NULL)::int), 0) AS failing,
-       coalesce(sum((error_count = 0 AND locks.job_id IS NULL)::int), 0) AS scheduled
-FROM que_jobs LEFT JOIN (
-  SELECT (classid::bigint << 32) + objid::bigint AS job_id
-  FROM pg_locks WHERE locktype = 'advisory'
-) locks USING (job_id) }.freeze
+      QUERY = %{
+        SELECT
+          count(*)                                                      AS total,
+          count(locks.id)                                               AS running,
+          coalesce(sum((error_count > 0 AND locks.id IS NULL)::int), 0) AS failing,
+          coalesce(sum((error_count = 0 AND locks.id IS NULL)::int), 0) AS scheduled
+        FROM
+          que_jobs
+        LEFT JOIN (
+          SELECT
+            (classid::bigint << 32) + objid::bigint AS id
+          FROM
+            pg_locks
+          WHERE
+            locktype = 'advisory'
+        ) locks USING (id)
+      }.freeze
 
       extend self
 

@@ -6,9 +6,7 @@ module HireFire
       QUERY = %{
         SELECT
           count(*)                                                      AS total,
-          count(locks.id)                                               AS running,
-          coalesce(sum((error_count > 0 AND locks.id IS NULL)::int), 0) AS failing,
-          coalesce(sum((error_count = 0 AND locks.id IS NULL)::int), 0) AS scheduled
+          coalesce(sum((error_count > 0 AND locks.id IS NULL)::int), 0) AS failing
         FROM
           que_jobs
         LEFT JOIN (
@@ -19,6 +17,8 @@ module HireFire
           WHERE
             locktype = 'advisory'
         ) locks USING (id)
+        WHERE
+          run_at < now()
       }.freeze
 
       extend self
@@ -34,9 +34,9 @@ module HireFire
       # @return [Integer] the number of jobs in the queue(s).
       #
       def queue(queue = nil)
-        query = queue ? "#{QUERY} AND queue = '#{queue}'" : QUERY
+        query   = queue ? "#{QUERY} AND queue = '#{queue}'" : QUERY
         results = ::Que.execute(query).first
-        results["total"].to_i
+        results[:total].to_i - results[:failing].to_i
       end
     end
   end
